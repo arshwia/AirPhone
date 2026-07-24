@@ -4,28 +4,92 @@ set -euo pipefail
 
 readonly CONFIG_FILE="$HOME/.config/airphone/config.conf"
 
+
 load_config() {
     if [[ ! -f "$CONFIG_FILE" ]]; then
         notify-send "AirPhone" "Config file not found."
         exit 1
     fi
 
-    # shellcheck source=/dev/null
     source "$CONFIG_FILE"
 }
 
-connect_phone() {
-    adb connect "${PHONE_IP}:${PHONE_PORT}" >/dev/null 2>&1
+
+save_config() {
+    cat > "$CONFIG_FILE" <<EOF
+PHONE_IP="$PHONE_IP"
+PHONE_PORT="$PHONE_PORT"
+
+SCRCPY_ARGS="
+--turn-screen-off
+--stay-awake
+"
+EOF
 }
+
+
+connect_phone() {
+
+    adb disconnect "${PHONE_IP}:${PHONE_PORT}" >/dev/null 2>&1 || true
+
+    adb connect "${PHONE_IP}:${PHONE_PORT}" >/dev/null 2>&1 || true
+
+    if adb devices | grep -q "${PHONE_IP}:${PHONE_PORT}.*device"; then
+        return 0
+    fi
+
+    return 1
+}
+
+
+ask_for_connection_data() {
+
+    PHONE_IP=$(zenity --entry \
+        --title="AirPhone" \
+        --text="Enter phone IP address:
+
+Find it on your phone:
+Settings → Developer options → Wireless debugging
+→ IP address & Port" \
+        --entry-text="$PHONE_IP")
+
+
+    PHONE_PORT=$(zenity --entry \
+        --title="AirPhone" \
+        --text="Enter phone port:
+
+Find it on your phone:
+Settings → Developer options → Wireless debugging
+→ IP address & Port" \
+        --entry-text="$PHONE_PORT")
+
+
+    save_config
+}
+
 
 start_scrcpy() {
-    exec scrcpy -e $SCRCPY_ARGS
+    exec scrcpy -e ${SCRCPY_ARGS}
 }
 
+
 main() {
+
     load_config
-    connect_phone
+
+    if ! connect_phone; then
+
+        ask_for_connection_data
+
+        if ! connect_phone; then
+            notify-send "AirPhone" "Could not connect to phone."
+            exit 1
+        fi
+
+    fi
+
     start_scrcpy
 }
+
 
 main
