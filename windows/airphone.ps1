@@ -9,6 +9,10 @@ $script:ScrcpyPath = $null
 $script:PHONE_IP = $null
 $script:PHONE_PORT = $null
 
+# GPT codes
+Add-Type -AssemblyName Microsoft.VisualBasic
+Add-Type -AssemblyName System.Windows.Forms
+
 # ====================== Functions ======================
 
 function Find-Executable {
@@ -70,6 +74,39 @@ PHONE_PORT="$PHONE_PORT"
 "@ | Set-Content $ConfigFile -Encoding UTF8
 }
 
+# GPT codes
+function Show-InputBox {
+
+    param(
+        [string]$Title,
+        [string]$Message,
+        [string]$Default = ""
+    )
+
+    return [Microsoft.VisualBasic.Interaction]::InputBox(
+        $Message,
+        $Title,
+        $Default
+    )
+
+}
+
+function Show-Message {
+
+    param(
+        [string]$Text,
+        [string]$Title = "AirPhone"
+    )
+
+    [System.Windows.Forms.MessageBox]::Show(
+        $Text,
+        $Title,
+        [System.Windows.Forms.MessageBoxButtons]::OK,
+        [System.Windows.Forms.MessageBoxIcon]::Information
+    ) | Out-Null
+
+}
+
 function Test-Connection {
     & $AdbPath disconnect "$PHONE_IP`:$PHONE_PORT" | Out-Null
     & $AdbPath connect "$PHONE_IP`:$PHONE_PORT" | Out-Null
@@ -78,15 +115,40 @@ function Test-Connection {
     return ($devices | Select-String "$PHONE_IP`:$PHONE_PORT\s+device")
 }
 
+# edit GPT codes
 function Ask-For-Connection {
-    Write-Host "`nCould not connect to your phone." -ForegroundColor Yellow
-    Write-Host "Please enter the current IP and Port from your phone:" -ForegroundColor Cyan
-    Write-Host "(Settings → Developer options → Wireless debugging → IP address & Port)" -ForegroundColor Gray
-    
-    $script:PHONE_IP   = Read-Host "Phone IP"
-    $script:PHONE_PORT = Read-Host "Phone Port"
-    
+
+    Show-Message @"
+Could not connect using the saved IP address.
+
+You can find the correct values on your phone:
+
+Settings
+→ Developer options
+→ Wireless debugging
+→ IP address & Port
+"@
+
+    $script:PHONE_IP = Show-InputBox `
+        "AirPhone" `
+        "Enter Phone IP" `
+        $PHONE_IP
+
+    if ([string]::IsNullOrWhiteSpace($PHONE_IP)) {
+        exit
+    }
+
+    $script:PHONE_PORT = Show-InputBox `
+        "AirPhone" `
+        "Enter Phone Port" `
+        $PHONE_PORT
+
+    if ([string]::IsNullOrWhiteSpace($PHONE_PORT)) {
+        exit
+    }
+
     Save-Config
+
 }
 
 function Start-AirPhone {
@@ -106,11 +168,19 @@ if (-not (Test-Connection)) {
     Ask-For-Connection
     
     if (-not (Test-Connection)) {
-        Write-Host "`nStill could not connect. Please check:" -ForegroundColor Red
-        Write-Host "- Phone and PC are on the same Wi-Fi" -ForegroundColor Gray
-        Write-Host "- Wireless debugging is enabled" -ForegroundColor Gray
-        Pause
-        exit 1
+        Show-Message @"
+Could not connect to your phone.
+
+Please check:
+
+• Phone and PC are connected to the same Wi-Fi.
+
+• Wireless debugging is enabled.
+
+• The IP address and port are correct.
+"@
+
+exit 1
     }
 }
 
