@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+
+Name=AirPhone
+Comment=Control your Android phone over Wi-Fi
+
+Exec=__EXEC__
+Icon=__ICON__
+
+Terminal=false
+
+Categories=Utility;
+StartupNotify=true

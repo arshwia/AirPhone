@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+readonly CONFIG_FILE="$HOME/.config/airphone/config.conf"
+
+load_config() {
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        notify-send "AirPhone" "Config file not found."
+        exit 1
+    fi
+
+    # shellcheck source=/dev/null
+    source "$CONFIG_FILE"
+}
+
+connect_phone() {
+    adb connect "${PHONE_IP}:${PHONE_PORT}" >/dev/null 2>&1
+}
+
+start_scrcpy() {
+    exec scrcpy -e $SCRCPY_ARGS
+}
+
+main() {
+    load_config
+    connect_phone
+    start_scrcpy
+}
+
+main
